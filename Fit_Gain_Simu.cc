@@ -24,13 +24,13 @@
 #include <TLegend.h>
 using namespace std;
 
-const int eres_n_bin = 18;
+const int eres_n_bin = 26;
 const float eres_bin_min = 7;
 const float eres_bin_max = 20;
 const float eres_bin_width = (eres_bin_max-eres_bin_min)/(eres_n_bin-1);
 
 const int gain_n_bin = 150;
-const float gain_bin_min = 1/6e-05;
+const float gain_bin_min = 1/5e-05;
 const float gain_bin_max = 1/3e-05;
 const float gain_bin_width = (gain_bin_max-gain_bin_min)/(gain_n_bin-1);
 
@@ -114,6 +114,7 @@ TH3D* MC_Simu(string name){
 
 
 
+
 void kolmo()
 {
   gStyle->SetOptFit(1);
@@ -123,13 +124,15 @@ void kolmo()
   TH3D* MC_Bi_214 = MC_Simu("Bi_214");
   TH3D* MC_K_40 = MC_Simu("K_40");
 
-  double Chi2NDF = 0;
+
+  int om = 0;
   double param1 = 0;
   double param2 = 0;
   double param3 = 0;
   double_t error1 =0;
   double_t error2 =0;
   double_t error3 = 0;
+  double Chi2NDF = 0;
 
   float gain =0;
   float eres = 0;
@@ -142,16 +145,17 @@ void kolmo()
   Result_tree.Branch("param3", &param3);
   Result_tree.Branch("gain", &gain);
   Result_tree.Branch("eres", &eres);
+  Result_tree.Branch("om", &om);
 
-  for (size_t i = 380; i < 420; i++) {
+  for (size_t om = 390; om < 400; om++) {
 
-    TH1D* spectre_om = spectre_charge(i);
+    TH1D* spectre_om = spectre_charge(om);
 
           for (int bin =1; bin < 120; bin++) {
           spectre_om->SetBinContent(bin, 0);
         }
 
-    for (int eres_count = 1; eres_count < 18; eres_count++) {
+    for (int eres_count = 1; eres_count < 26; eres_count++) {
       for (int gain_count = 1; gain_count <150; gain_count++) {
         TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
         TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
@@ -225,10 +229,8 @@ void kolmo()
          legend->AddEntry(result_2, "K_40");
          legend->AddEntry(result, "fit");
          legend->Draw();
-         canvas->SaveAs(Form("Fit_kolmo/triple/fit_kolmo_om_%d_eres_%d_gain_%d.png", i, eres_count, gain_count));
+         canvas->SaveAs(Form("Fit_kolmo/triple/fit_kolmo_om_%zu_eres_%d_gain_%d.png", om, eres_count, gain_count));
          // canvas->SaveAs(Form("Fit_kolmo/double/fit_kolmo_eres_%d_gain_%d.png", eres_count, gain_count));
-
-
 
 
          Result_tree.Fill();

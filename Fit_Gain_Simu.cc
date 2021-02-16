@@ -24,18 +24,18 @@
 #include <TLegend.h>
 using namespace std;
 
-const int eres_n_bin = 26;
+const int eres_n_bin = 107;
 const float eres_bin_min = 7;
-const float eres_bin_max = 20;
+const float eres_bin_max = 60;
 const float eres_bin_width = (eres_bin_max-eres_bin_min)/(eres_n_bin-1);
 
-const int gain_n_bin = 150;
-const float gain_bin_min = 1/5e-05;
+const int gain_n_bin = 26;
+const float gain_bin_min = 1/4.5e-05;
 const float gain_bin_max = 1/3e-05;
 const float gain_bin_width = (gain_bin_max-gain_bin_min)/(gain_n_bin-1);
 
 const int charge_n_bin = 1024;
-const float charge_bin_min = 0;
+const float charge_bin_min = 0e-05;
 const float charge_bin_max = 200000;
 const float charge_bin_width = (charge_bin_max-charge_bin_min)/(charge_n_bin-1);
 
@@ -74,7 +74,7 @@ TH3D* MC_Simu(string name){
                                 gain_n_bin, gain_bin_min - (gain_bin_width/2), gain_bin_max + (gain_bin_width/2),
                                 charge_n_bin, charge_bin_min, charge_bin_max);
 
-
+  // for (int i = 0; i < 10000; i++) {
   for (int i = 0; i < 1000000; i++) {
   // for (int i = 0; i < tree->GetEntries(); i++) {
     double E_kolmo =0;
@@ -96,20 +96,7 @@ TH3D* MC_Simu(string name){
     }
   }
 
-  //
-  // for (int bin_eres = 0; bin_eres < eres_n_bin; bin_eres++) {
-  //   for(int bin_gain = 0; bin_gain< gain_n_bin; bin_gain++) {
-  //     double integrale =
-   // MC_Simu->Integral(bin_eres + 1, bin_eres + 1, bin_gain + 1, bin_gain + 1, charge_bin_min, charge_bin_max);
-  //     // std::cout << integrale << '\n';
-  //     for(int bin_charge = 0; bin_charge < charge_n_bin; bin_charge++){
-  //       MC_Simu->SetBinContent(bin_eres+1, bin_gain+1, bin_charge +1, (MC_Simu->GetBinContent(bin_eres+1, bin_gain+1, bin_charge +1))/integrale);
-  //       // MC_Simu->SetBinError(bin_eres+1, bin_gain+1, bin_charge +1, TMath::Sqrt((MC_Simu->GetBinContent(bin_eres+1, bin_gain+1, bin_charge +1)))/integrale);
-  //     }
-  //   }
-  // }
  return MC_Simu;
-
 }
 
 
@@ -117,14 +104,24 @@ TH3D* MC_Simu(string name){
 
 void kolmo()
 {
+  std::ifstream  charge("/home/xaguerre/Bureau/Thèse/Fit_Gain_Simu/gain_data/Resultat_mean_energie_charge_total.txt");
+  float charge_valeur_fit [712];
+  memset(charge_valeur_fit, -1, 712*sizeof(float));
+  int charge_om_num;
+  while (charge >> charge_om_num)
+  {
+    charge >> charge_valeur_fit[charge_om_num];
+  }
+
   gStyle->SetOptFit(1);
   TH1::SetDefaultSumw2();
 
   TH3D* MC_Tl_208 = MC_Simu("Tl_208");
   TH3D* MC_Bi_214 = MC_Simu("Bi_214");
   TH3D* MC_K_40 = MC_Simu("K_40");
+  TH2D* Chi2 = new TH2D("Chi2", "Chi2", eres_n_bin-1, eres_bin_min, eres_bin_max, gain_n_bin-1, gain_bin_min, gain_bin_max);
 
-
+  int lim = 0;
   int om = 0;
   double param1 = 0;
   double param2 = 0;
@@ -146,22 +143,33 @@ void kolmo()
   Result_tree.Branch("gain", &gain);
   Result_tree.Branch("eres", &eres);
   Result_tree.Branch("om", &om);
+  Result_tree.Branch("lim", &lim);
 
-  for (size_t om = 390; om < 400; om++) {
+  for (om = 390; om < 400; om++) {
 
     TH1D* spectre_om = spectre_charge(om);
 
-          for (int bin =1; bin < 120; bin++) {
-          spectre_om->SetBinContent(bin, 0);
-        }
+    std::cout << charge_valeur_fit[om] << '\n';
+    lim = (1/(200000*charge_valeur_fit[om]/1024));
 
-    for (int eres_count = 1; eres_count < 26; eres_count++) {
-      for (int gain_count = 1; gain_count <150; gain_count++) {
+    for (int bin =1; bin < lim; bin++) {
+      spectre_om->SetBinContent(bin, 0);
+    }
+
+    for (int eres_count = 1; eres_count < 107; eres_count++) {
+      for (int gain_count = 1; gain_count <26; gain_count++) {
         TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
         TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
         TH1D *mc2 = MC_K_40->ProjectionZ("Charge_K_40", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
 
-        for (int bin =1; bin < 120; bin++) {
+        std::cout << "/* lim : */" << '\n';
+        std::cout << lim << '\n';
+        std::cout << "/* gain :*/" << '\n';
+        std::cout << charge_valeur_fit[om] << '\n';
+        std::cout << "/* .....  */" << '\n';
+
+
+        for (int bin =1; bin < lim; bin++) {
           mc0->SetBinContent(bin, 0);
           mc1->SetBinContent(bin, 0);
           mc2->SetBinContent(bin, 0);
@@ -205,7 +213,7 @@ void kolmo()
          TCanvas* canvas = new TCanvas;
          canvas->SetLogy();
          spectre_om->Draw("same");
-         spectre_om->SetTitle("Fit simu Bi+Tl+K");
+         spectre_om->SetTitle(Form("Fit_simu Eres = %.2f, Gain = %.0f", eres, 1/gain));
          spectre_om->GetXaxis()->SetRangeUser(0, 120000);
          spectre_om->GetXaxis()->SetTitle("Charge (adc)");
          result_0->Draw("same");
@@ -229,26 +237,65 @@ void kolmo()
          legend->AddEntry(result_2, "K_40");
          legend->AddEntry(result, "fit");
          legend->Draw();
-         canvas->SaveAs(Form("Fit_kolmo/triple/fit_kolmo_om_%zu_eres_%d_gain_%d.png", om, eres_count, gain_count));
-         // canvas->SaveAs(Form("Fit_kolmo/double/fit_kolmo_eres_%d_gain_%d.png", eres_count, gain_count));
 
+
+         if (eres < 12) {
+           canvas->SaveAs(Form("Fit_kolmo/triple/fit_kolmo_om_%d_eres_%d_gain_%d.png", om, eres_count, gain_count));
+         }
+         if (om == 390) {
+           Chi2->SetBinContent(eres_count, gain_count, Chi2NDF);
+         }
 
          Result_tree.Fill();
          delete fit;
         }
-       }
-   }
- }
+      }
+    }
+  }
 
 
  newfile->cd();
 
  Result_tree.Write();
+ Chi2->Write();
 
  newfile->Close();
 
 }
 
+
+// void activity() {
+//
+//   TFile *simu = new TFile("histo_kolmo/Simu_kolmo_test.root", "READ");
+//   TFile *newfile = new TFile("activity/activity.root", "RECREATE");
+//
+//   double param1 = 0;
+//   double param2 = 0;
+//   double param3 = 0;
+//
+//   TTree* simu_tree = (TTree*)simu->Get("Result_tree");
+//   simu_tree->SetBranchStatus("*",0);
+//   simu_tree->SetBranchStatus("param1",1);
+//   simu_tree->SetBranchAddress("param1", &param1);
+//   simu_tree->SetBranchStatus("param2",1);
+//   simu_tree->SetBranchAddress("param2", &param2);
+//   simu_tree->SetBranchStatus("param3",1);
+//   simu_tree->SetBranchAddress("param3", &param3);
+//
+//   TH3D* MC_Tl_208 = (TH2F*)file->Get("MC_Simu");
+//   TH3D* MC_Bi_214 = (TH2F*)file->Get("MC_Simu");
+//   TH3D* MC_K_40 = (TH2F*)file->Get("MC_Simu");
+//
+//   TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
+//   TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+//   TH1D *mc2 = MC_K_40->ProjectionZ("Charge_K_40", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+//
+//
+//
+//
+//
+//
+// }
 
 int main(int argc, char const *argv[])
 {

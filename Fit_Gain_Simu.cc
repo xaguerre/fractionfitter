@@ -1,3 +1,4 @@
+#define _USE_MATH_DEFINES
 #include <fstream>
 #include <sstream>
 #include <fstream>
@@ -24,9 +25,9 @@
 #include <TLegend.h>
 using namespace std;
 
-const int eres_n_bin = 107;
+const int eres_n_bin = 27;
 const float eres_bin_min = 7;
-const float eres_bin_max = 60;
+const float eres_bin_max = 20;
 const float eres_bin_width = (eres_bin_max-eres_bin_min)/(eres_n_bin-1);
 
 const int gain_n_bin = 26;
@@ -74,7 +75,7 @@ TH3D* MC_Simu(string name){
                                 gain_n_bin, gain_bin_min - (gain_bin_width/2), gain_bin_max + (gain_bin_width/2),
                                 charge_n_bin, charge_bin_min, charge_bin_max);
 
-  // for (int i = 0; i < 10000; i++) {
+  // for (int i = 0; i < 100000; i++) {
   for (int i = 0; i < 1000000; i++) {
   // for (int i = 0; i < tree->GetEntries(); i++) {
     double E_kolmo =0;
@@ -130,6 +131,9 @@ void kolmo()
   double_t error2 =0;
   double_t error3 = 0;
   double Chi2NDF = 0;
+  double activity_Tl = 0;
+  double activity_Bi = 0;
+  double activity_K = 0;
 
   float gain =0;
   float eres = 0;
@@ -144,6 +148,9 @@ void kolmo()
   Result_tree.Branch("eres", &eres);
   Result_tree.Branch("om", &om);
   Result_tree.Branch("lim", &lim);
+  Result_tree.Branch("activity_Tl", &activity_Tl);
+  Result_tree.Branch("activity_Bi", &activity_Bi);
+  Result_tree.Branch("activity_K", &activity_K);
 
   for (om = 390; om < 400; om++) {
 
@@ -156,18 +163,11 @@ void kolmo()
       spectre_om->SetBinContent(bin, 0);
     }
 
-    for (int eres_count = 1; eres_count < 107; eres_count++) {
+    for (int eres_count = 1; eres_count < 27; eres_count++) {
       for (int gain_count = 1; gain_count <26; gain_count++) {
         TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
         TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
         TH1D *mc2 = MC_K_40->ProjectionZ("Charge_K_40", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
-
-        std::cout << "/* lim : */" << '\n';
-        std::cout << lim << '\n';
-        std::cout << "/* gain :*/" << '\n';
-        std::cout << charge_valeur_fit[om] << '\n';
-        std::cout << "/* .....  */" << '\n';
-
 
         for (int bin =1; bin < lim; bin++) {
           mc0->SetBinContent(bin, 0);
@@ -206,6 +206,10 @@ void kolmo()
          TH1D* result_0 = (TH1D*) fit->GetMCPrediction(0);
          TH1D* result_1 = (TH1D*) fit->GetMCPrediction(1);
          TH1D* result_2 = (TH1D*) fit->GetMCPrediction(2);
+
+         activity_Tl = result_0->Integral()/(4*M_PI*1800);
+         activity_Bi = result_1->Integral()/(4*M_PI*1800);
+         activity_K = result_2->Integral()/(4*M_PI*1800);
 
          gain = 1/(gain_bin_min + gain_bin_width*(gain_count-1));
          eres = eres_bin_min + eres_bin_width*(eres_count-1);
@@ -263,39 +267,6 @@ void kolmo()
 
 }
 
-
-// void activity() {
-//
-//   TFile *simu = new TFile("histo_kolmo/Simu_kolmo_test.root", "READ");
-//   TFile *newfile = new TFile("activity/activity.root", "RECREATE");
-//
-//   double param1 = 0;
-//   double param2 = 0;
-//   double param3 = 0;
-//
-//   TTree* simu_tree = (TTree*)simu->Get("Result_tree");
-//   simu_tree->SetBranchStatus("*",0);
-//   simu_tree->SetBranchStatus("param1",1);
-//   simu_tree->SetBranchAddress("param1", &param1);
-//   simu_tree->SetBranchStatus("param2",1);
-//   simu_tree->SetBranchAddress("param2", &param2);
-//   simu_tree->SetBranchStatus("param3",1);
-//   simu_tree->SetBranchAddress("param3", &param3);
-//
-//   TH3D* MC_Tl_208 = (TH2F*)file->Get("MC_Simu");
-//   TH3D* MC_Bi_214 = (TH2F*)file->Get("MC_Simu");
-//   TH3D* MC_K_40 = (TH2F*)file->Get("MC_Simu");
-//
-//   TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
-//   TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
-//   TH1D *mc2 = MC_K_40->ProjectionZ("Charge_K_40", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
-//
-//
-//
-//
-//
-//
-// }
 
 int main(int argc, char const *argv[])
 {

@@ -30,9 +30,9 @@ const float eres_bin_min = 7;
 const float eres_bin_max = 20;
 const float eres_bin_width = (eres_bin_max-eres_bin_min)/(eres_n_bin-1);
 
-const int gain_n_bin = 46;
+const int gain_n_bin = 26;
 const float gain_bin_min = 1/5e-05;
-const float gain_bin_max = 1/3e-05;
+const float gain_bin_max = 1/1e-05;
 const float gain_bin_width = (gain_bin_max-gain_bin_min)/(gain_n_bin-1);
 
 const int charge_n_bin = 1024;
@@ -133,6 +133,12 @@ void kolmo()
   double result_0_scale;
   double result_1_scale;
   double result_2_scale;
+  double integrale_gauche_Tl;
+  double integrale_droite_Tl;
+  double integrale_gauche_Bi;
+  double integrale_droite_Bi;
+  double integrale_gauche_K;
+  double integrale_droite_K;
 
   float gain = 0;
   float eres = 0;
@@ -171,6 +177,13 @@ void kolmo()
           TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
           TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
           TH1D *mc2 = MC_K_40->ProjectionZ("Charge_K_40", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+
+          integrale_gauche_Tl = mc0->Integral(0, lim);
+          integrale_droite_Tl = mc0->Integral(lim, 1024);
+          integrale_gauche_Bi = mc0->Integral(0, lim);
+          integrale_droite_Bi = mc0->Integral(lim, 1024);
+          integrale_gauche_K = mc0->Integral(0, lim);
+          integrale_droite_K = mc0->Integral(lim, 1024);
 
 
           for (int bin =1; bin < lim; bin++)
@@ -216,7 +229,7 @@ void kolmo()
             eres = eres_bin_min + eres_bin_width*(eres_count-1);
 
             std::cout << "om : " << om << "   gain : " << gain << "    eres : " << eres << '\n';
-            //
+
 
             TCanvas* canvas = new TCanvas;
             canvas->SetLogy();
@@ -259,40 +272,42 @@ void kolmo()
               Chi2->SetBinContent(eres_count, gain_count, Chi2NDF);
             }
 
-            TH1D *mc0_full = MC_Tl_208->ProjectionZ("Charge_Tl_208_full", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
-            TH1D *mc1_full = MC_Bi_214->ProjectionZ("Charge_Bi_214_full", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
-            TH1D *mc2_full = MC_K_40->ProjectionZ("Charge_K_40_full", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+            // TH1D *mc0_full = MC_Tl_208->ProjectionZ("Charge_Tl_208_full", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
+            // TH1D *mc1_full = MC_Bi_214->ProjectionZ("Charge_Bi_214_full", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+            // TH1D *mc2_full = MC_K_40->ProjectionZ("Charge_K_40_full", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+            //
+            // mc1_full->Draw("");
+            // mc0_full->Draw("same");
+            // mc2_full->Draw("same");
+            //
+            // spectre_om_full->Draw("same");
+            // spectre_om_full->GetXaxis()->SetRangeUser(0, 120000);
+            //
+            // mc0_full->Scale(result_0_scale);
+            // mc1_full->Scale(result_1_scale);
+            // mc2_full->Scale(result_2_scale);
+            //
+            // mc0_full->SetLineColor(kGreen);
+            // mc1_full->SetLineColor(kOrange);
+            // mc2_full->SetLineColor(kBlack);
 
-            mc1_full->Draw("");
-            mc0_full->Draw("same");
-            mc2_full->Draw("same");
-
-            spectre_om_full->Draw("same");
-            spectre_om_full->GetXaxis()->SetRangeUser(0, 120000);
-
-            mc0_full->Scale(result_0_scale);
-            mc1_full->Scale(result_1_scale);
-            mc2_full->Scale(result_2_scale);
-
-            mc0_full->SetLineColor(kGreen);
-            mc1_full->SetLineColor(kOrange);
-            mc2_full->SetLineColor(kBlack);
-
-            activity_Tl = mc0_full->Integral()/(1800);
-            activity_Bi = mc1_full->Integral()/(1800);
-            activity_K = mc2_full->Integral()/(1800);
+            activity_Tl = (mc0->Integral()+mc0->Integral()*integrale_gauche_Tl/integrale_droite_Tl)/(1800);
+            activity_Bi = (mc1->Integral()+mc1->Integral()*integrale_gauche_Bi/integrale_droite_Bi)/(1800);
+            activity_K = (mc2->Integral()+mc2->Integral()*integrale_gauche_K/integrale_droite_K)/(1800);
 
 
-            if (eres < 12 )
-            {
-              canvas->SaveAs(Form("activity/fit_kolmo_om_%d_eres_%d_gain_%d.png", om, eres_count, gain_count));
-            }
+            // if (eres < 12 )
+            // {
+            //   canvas->SaveAs(Form("activity/fit_kolmo_om_%d_eres_%d_gain_%d.png", om, eres_count, gain_count));
+            // }
 
             Result_tree.Fill();
             delete fit;
           }
 
-          delete mc0, mc1, mc2;
+          delete mc0;
+          delete mc1;
+          delete mc2;
         }
       }
     }
@@ -329,11 +344,17 @@ void kolmo_mystere()
   double activity_Tl = 0;
   double activity_Bi = 0;
   double activity_K = 0;
+  double integrale_gauche_Tl;
+  double integrale_droite_Tl;
+  double integrale_gauche_Bi;
+  double integrale_droite_Bi;
+  double integrale_gauche_K;
+  double integrale_droite_K;
 
   float gain = 0;
   float eres = 0;
 
-  TFile *newfile = new TFile("histo_kolmo/Simu_kolmo.root", "RECREATE");
+  TFile *newfile = new TFile("histo_kolmo/Simu_mystere.root", "RECREATE");
   TTree Result_tree("Result_tree","");
   Result_tree.Branch("Chi2NDF", &Chi2NDF);
   Result_tree.Branch("param1", &param1);
@@ -346,25 +367,39 @@ void kolmo_mystere()
   Result_tree.Branch("activity_Bi", &activity_Bi);
   Result_tree.Branch("activity_K", &activity_K);
 
-
-  TFile *file = new TFile("histo_mystere/histo_1.root", "READ");
-  TH1D* spectre_om = (TH1D*)file->Get("histo_1");
-  lim = (38250);
-
-
+  // TFile *file = new TFile("histo_mystere/histo_1.root", "READ");
+  // TH1D* spectre_om = (TH1D*)file->Get("histo_1");
+  TFile *file = new TFile("histo_mystere/histo_2.root", "READ");
+  TH1D* spectre_om = (TH1D*)file->Get("histo_2");
+  lim = (195);
     for (int bin =1; bin < lim; bin++) {
       spectre_om->SetBinContent(bin, 0);
     }
 
       for (int eres_count = 1; eres_count < 27; eres_count++) {
-        for (int gain_count = 1; gain_count <36; gain_count++) {
+        for (int gain_count = 1; gain_count <26; gain_count++) {
+          float P =(1/50000.0*0.6);
+          float r = (1/50000.0*1.4);
+          // float P =(1/38250.0*0.6);
+          // float r = (1/38250.0*1.4);
 
-        if ((1/(gain_bin_min + gain_bin_width*(gain_count-1))>lim*0.8) && (1/(gain_bin_min + gain_bin_width*(gain_count-1))<lim*1.2))
+          std::cout << 1/(gain_bin_min + gain_bin_width*(gain_count-1))<< "   et    lim_inf = " << P << "   sup  ="  <<r<< '\n';
+
+        if ((1/(gain_bin_min + gain_bin_width*(gain_count-1))>0.8*50000.0) && (1/(gain_bin_min + gain_bin_width*(gain_count-1))<1.2*1/50000.0))
         {
-
+          std::cout << "/* message */" << '\n';
           TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
           TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
           TH1D *mc2 = MC_K_40->ProjectionZ("Charge_K_40", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+
+          integrale_gauche_Tl = mc0->Integral(0, lim);
+          integrale_droite_Tl = mc0->Integral(lim, 1024);
+          integrale_gauche_Bi = mc0->Integral(0, lim);
+          integrale_droite_Bi = mc0->Integral(lim, 1024);
+          integrale_gauche_K = mc0->Integral(0, lim);
+          integrale_droite_K = mc0->Integral(lim, 1024);
+
+          std::cout << integrale_gauche_K << '\n';
 
           for (int bin =1; bin < lim; bin++)
           {
@@ -405,9 +440,6 @@ void kolmo_mystere()
             TH1D* result_1 = (TH1D*) fit->GetMCPrediction(1);
             TH1D* result_2 = (TH1D*) fit->GetMCPrediction(2);
 
-            activity_Tl = result_0->Integral()/(1800);
-            activity_Bi = result_1->Integral()/(1800);
-            activity_K = result_2->Integral()/(1800);
 
             gain = 1/(gain_bin_min + gain_bin_width*(gain_count-1));
             eres = eres_bin_min + eres_bin_width*(eres_count-1);
@@ -440,6 +472,12 @@ void kolmo_mystere()
             legend->AddEntry(result_2, "K_40");
             legend->AddEntry(result, "fit");
             legend->Draw();
+
+            activity_Tl = (mc0->Integral()+mc0->Integral()*integrale_gauche_Tl/integrale_droite_Tl)/(1800);
+            activity_Bi = (mc1->Integral()+mc1->Integral()*integrale_gauche_Bi/integrale_droite_Bi)/(1800);
+            activity_K = (mc2->Integral()+mc2->Integral()*integrale_gauche_K/integrale_droite_K)/(1800);
+
+
             if (eres < 20 )
             {
               canvas->SaveAs(Form("Fit_kolmo/histo_mystere/fit_kolmo_eres_%d_gain_%d.png", eres_count, gain_count));
@@ -449,12 +487,10 @@ void kolmo_mystere()
             Result_tree.Fill();
             delete canvas;
             delete fit;
-
           }
           delete mc0;
           delete mc1;
           delete mc2;
-
         }
       }
     }

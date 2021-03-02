@@ -25,12 +25,12 @@
 #include <TLegend.h>
 using namespace std;
 
-const int eres_n_bin = 27;
+const int eres_n_bin = 54;
 const float eres_bin_min = 7;
 const float eres_bin_max = 20;
 const float eres_bin_width = (eres_bin_max-eres_bin_min)/(eres_n_bin-1);
 
-const int gain_n_bin = 26;
+const int gain_n_bin = 100;
 const float gain_bin_min = 1/5e-05;
 const float gain_bin_max = 1/1e-05;
 const float gain_bin_width = (gain_bin_max-gain_bin_min)/(gain_n_bin-1);
@@ -74,8 +74,8 @@ TH3D* MC_Simu(string name){
                                 gain_n_bin, gain_bin_min - (gain_bin_width/2), gain_bin_max + (gain_bin_width/2),
                                 charge_n_bin, charge_bin_min, charge_bin_max);
 
-  for (int i = 0; i < 100000; i++) {
-  // for (int i = 0; i < 1000000; i++) {
+  // for (int i = 0; i < 100000; i++) {
+  for (int i = 0; i < 1000000; i++) {
   // for (int i = 0; i < tree->GetEntries(); i++) {
     double E_kolmo =0;
     tree->GetEntry(i);
@@ -145,6 +145,7 @@ void kolmo()
 
   TFile *newfile = new TFile("histo_kolmo/Simu_kolmo.root", "RECREATE");
   TTree Result_tree("Result_tree","");
+
   Result_tree.Branch("Chi2NDF", &Chi2NDF);
   Result_tree.Branch("param1", &param1);
   Result_tree.Branch("param2", &param2);
@@ -156,6 +157,12 @@ void kolmo()
   Result_tree.Branch("activity_Tl", &activity_Tl);
   Result_tree.Branch("activity_Bi", &activity_Bi);
   Result_tree.Branch("activity_K", &activity_K);
+  Result_tree.Branch("integrale_droite_Tl", &integrale_droite_Tl);
+  Result_tree.Branch("integrale_gauche_Tl", &integrale_gauche_Tl);
+  Result_tree.Branch("integrale_droite_Bi", &integrale_droite_Bi);
+  Result_tree.Branch("integrale_gauche_Bi", &integrale_gauche_Bi);
+  Result_tree.Branch("integrale_droite_K", &integrale_droite_K);
+  Result_tree.Branch("integrale_gauche_K", &integrale_gauche_K);
 
   for (om = 390; om < 392; om++) {
 
@@ -168,8 +175,8 @@ void kolmo()
     }
 
 
-    for (int eres_count = 1; eres_count < 27; eres_count++) {
-      for (int gain_count = 1; gain_count <26; gain_count++) {
+    for (int eres_count = 1; eres_count < 54; eres_count++) {
+      for (int gain_count = 1; gain_count <150; gain_count++) {
         if ((1/(gain_bin_min + gain_bin_width*(gain_count-1))>charge_valeur_fit[om]*0.8) && (1/(gain_bin_min + gain_bin_width*(gain_count-1))<charge_valeur_fit[om]*1.2))
         {
 
@@ -291,9 +298,9 @@ void kolmo()
             // mc1_full->SetLineColor(kOrange);
             // mc2_full->SetLineColor(kBlack);
 
-            activity_Tl = (mc0->Integral()+mc0->Integral()*integrale_gauche_Tl/integrale_droite_Tl)/(1800);
-            activity_Bi = (mc1->Integral()+mc1->Integral()*integrale_gauche_Bi/integrale_droite_Bi)/(1800);
-            activity_K = (mc2->Integral()+mc2->Integral()*integrale_gauche_K/integrale_droite_K)/(1800);
+            activity_Tl = (mc0->Integral()+mc0->Integral()*integrale_gauche_Tl/integrale_droite_Tl);
+            activity_Bi = (mc1->Integral()+mc1->Integral()*integrale_gauche_Bi/integrale_droite_Bi);
+            activity_K = (mc2->Integral()+mc2->Integral()*integrale_gauche_K/integrale_droite_K);
 
 
             // if (eres < 12 )
@@ -351,10 +358,12 @@ void kolmo_mystere()
   double integrale_gauche_K;
   double integrale_droite_K;
 
+
+
   float gain = 0;
   float eres = 0;
 
-  TFile *newfile = new TFile("histo_kolmo/Simu_mystere.root", "RECREATE");
+  TFile *newfile = new TFile("histo_kolmo/Simu_mystere_2_gain.root", "RECREATE");
   TTree Result_tree("Result_tree","");
   Result_tree.Branch("Chi2NDF", &Chi2NDF);
   Result_tree.Branch("param1", &param1);
@@ -366,37 +375,44 @@ void kolmo_mystere()
   Result_tree.Branch("activity_Tl", &activity_Tl);
   Result_tree.Branch("activity_Bi", &activity_Bi);
   Result_tree.Branch("activity_K", &activity_K);
+  Result_tree.Branch("integrale_droite_Tl", &integrale_droite_Tl);
+  // Result_tree.Branch("integrale_gauche_Tl", &integrale_gauche_Tl);
+  Result_tree.Branch("integrale_droite_Bi", &integrale_droite_Bi);
+  // Result_tree.Branch("integrale_gauche_Bi", &integrale_gauche_Bi);
+  Result_tree.Branch("integrale_droite_K", &integrale_droite_K);
+  // Result_tree.Branch("integrale_gauche_K", &integrale_gauche_K);
 
-  // TFile *file = new TFile("histo_mystere/histo_1.root", "READ");
-  // TH1D* spectre_om = (TH1D*)file->Get("histo_1");
+
   TFile *file = new TFile("histo_mystere/histo_2.root", "READ");
   TH1D* spectre_om = (TH1D*)file->Get("histo_2");
+
   lim = (195);
     for (int bin =1; bin < lim; bin++) {
       spectre_om->SetBinContent(bin, 0);
     }
 
-      for (int eres_count = 1; eres_count < 27; eres_count++) {
-        for (int gain_count = 1; gain_count <26; gain_count++) {
-          float P =(1/50000.0*0.6);
-          float r = (1/50000.0*1.4);
+
+        for (int gain_count = 1; gain_count <100; gain_count++) {
+                for (int eres_count = 1; eres_count < 54; eres_count++) {
+          float P =(1/50000.0*0.8);
+          float r = (1/50000.0*1.2);
           // float P =(1/38250.0*0.6);
           // float r = (1/38250.0*1.4);
 
           std::cout << 1/(gain_bin_min + gain_bin_width*(gain_count-1))<< "   et    lim_inf = " << P << "   sup  ="  <<r<< '\n';
 
-        if ((1/(gain_bin_min + gain_bin_width*(gain_count-1))>0.8*50000.0) && (1/(gain_bin_min + gain_bin_width*(gain_count-1))<1.2*1/50000.0))
+        if ((1/(gain_bin_min + gain_bin_width*(gain_count-1))>P) && (1/(gain_bin_min + gain_bin_width*(gain_count-1))<r))
         {
           std::cout << "/* message */" << '\n';
           TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
           TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
           TH1D *mc2 = MC_K_40->ProjectionZ("Charge_K_40", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
 
-          integrale_gauche_Tl = mc0->Integral(0, lim);
+          // integrale_gauche_Tl = mc0->Integral(0, lim);
           integrale_droite_Tl = mc0->Integral(lim, 1024);
-          integrale_gauche_Bi = mc0->Integral(0, lim);
+          // integrale_gauche_Bi = mc0->Integral(0, lim);
           integrale_droite_Bi = mc0->Integral(lim, 1024);
-          integrale_gauche_K = mc0->Integral(0, lim);
+          // integrale_gauche_K = mc0->Integral(0, lim);
           integrale_droite_K = mc0->Integral(lim, 1024);
 
           std::cout << integrale_gauche_K << '\n';
@@ -473,15 +489,15 @@ void kolmo_mystere()
             legend->AddEntry(result, "fit");
             legend->Draw();
 
-            activity_Tl = (mc0->Integral()+mc0->Integral()*integrale_gauche_Tl/integrale_droite_Tl)/(1800);
-            activity_Bi = (mc1->Integral()+mc1->Integral()*integrale_gauche_Bi/integrale_droite_Bi)/(1800);
-            activity_K = (mc2->Integral()+mc2->Integral()*integrale_gauche_K/integrale_droite_K)/(1800);
+            activity_Tl = (mc0->Integral()/integrale_droite_Tl)/1800;
+            activity_Bi = (mc1->Integral()/integrale_droite_Bi)/1800;
+            activity_K = (mc2->Integral()/integrale_droite_K)/1800;
 
 
-            if (eres < 20 )
-            {
-              canvas->SaveAs(Form("Fit_kolmo/histo_mystere/fit_kolmo_eres_%d_gain_%d.png", eres_count, gain_count));
-            }
+            // if (eres < 20 )
+            // {
+            //   canvas->SaveAs(Form("Fit_kolmo/histo_mystere/fit_kolmo_eres_%d_gain_%d.png", eres_count, gain_count));
+            // }
             Chi2->SetBinContent(eres_count, gain_count, Chi2NDF);
 
             Result_tree.Fill();

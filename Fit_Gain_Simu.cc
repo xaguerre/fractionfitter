@@ -25,14 +25,14 @@
 #include <TLegend.h>
 using namespace std;
 
-const int eres_n_bin = 54;
+const int eres_n_bin = 27;
 const float eres_bin_min = 7;
 const float eres_bin_max = 20;
 const float eres_bin_width = (eres_bin_max-eres_bin_min)/(eres_n_bin-1);
 
-const int gain_n_bin = 100;
+const int gain_n_bin = 26;
 const float gain_bin_min = 1/5e-05;
-const float gain_bin_max = 1/1e-05;
+const float gain_bin_max = 1/3e-05;
 const float gain_bin_width = (gain_bin_max-gain_bin_min)/(gain_n_bin-1);
 
 const int charge_n_bin = 1024;
@@ -111,6 +111,7 @@ void kolmo()
   }
 
   gStyle->SetOptFit(1);
+  gStyle->SetOptStat(0);
   TH1::SetDefaultSumw2();
 
   TH3D* MC_Tl_208 = MC_Simu("Tl_208");
@@ -175,8 +176,8 @@ void kolmo()
     }
 
 
-    for (int eres_count = 1; eres_count < 54; eres_count++) {
-      for (int gain_count = 1; gain_count <150; gain_count++) {
+    for (int eres_count = 1; eres_count < 27; eres_count++) {
+      for (int gain_count = 1; gain_count <26; gain_count++) {
         if ((1/(gain_bin_min + gain_bin_width*(gain_count-1))>charge_valeur_fit[om]*0.8) && (1/(gain_bin_min + gain_bin_width*(gain_count-1))<charge_valeur_fit[om]*1.2))
         {
 
@@ -333,6 +334,7 @@ void kolmo()
 void kolmo_mystere()
 {
   gStyle->SetOptFit(1);
+  gStyle->SetOptStat(0);
   TH1::SetDefaultSumw2();
 
   TH3D* MC_Tl_208 = MC_Simu("Tl_208");
@@ -523,6 +525,47 @@ void kolmo_mystere()
  newfile->Close();
 
 }
+
+
+void eff_om(string name) {
+
+
+  std::vector<int> *om_id = new std::vector<int>;
+  std::vector<double> *energy = new std::vector<double>;
+
+  TFile *newfile = new TFile("eff_om.root", "RECREATE");
+  TFile *file = new TFile(Form("Histo_simu/Simu_%s.root", name.c_str()), "READ");
+  TTree* tree = (TTree*)file->Get("Result_tree");
+  tree->SetBranchStatus("*",0);
+  tree->SetBranchStatus("om_id",1);
+  tree->SetBranchAddress("om_id", &om_id);
+  tree->SetBranchStatus("energy",1);
+  tree->SetBranchAddress("energy", &energy);
+
+  TH2F eff_fr("eff_fr", "eficacité mur fr", 20, 0, 20, 13, 0, 13);
+
+
+  for (int i = 0; i < 260; i++) {
+
+    string s =to_string (i);
+
+    int om_col = (i % 13 );
+    int om_row = (i / 13);
+
+    eff_fr.SetBinContent( om_row+1, om_col+1, tree->GetEntries(Form("om_id == %s", s.c_str())));
+    std::cout << "ok pour l'om : " << i << '\n';
+  }
+
+newfile->cd();
+
+eff_fr.Write();
+
+newfile->Close();
+
+}
+
+
+
 
 int main(int argc, char const *argv[])
 {

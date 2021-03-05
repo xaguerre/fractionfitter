@@ -25,14 +25,14 @@
 #include <TLegend.h>
 using namespace std;
 
-const int eres_n_bin = 27;
+const int eres_n_bin = 54;
 const float eres_bin_min = 7;
 const float eres_bin_max = 20;
 const float eres_bin_width = (eres_bin_max-eres_bin_min)/(eres_n_bin-1);
 
-const int gain_n_bin = 26;
+const int gain_n_bin = 150;
 const float gain_bin_min = 1/5e-05;
-const float gain_bin_max = 1/3e-05;
+const float gain_bin_max = 1/1e-05;
 const float gain_bin_width = (gain_bin_max-gain_bin_min)/(gain_n_bin-1);
 
 const int charge_n_bin = 1024;
@@ -143,10 +143,22 @@ void kolmo()
 
   float gain = 0;
   float eres = 0;
+  double eff_tot;
+  double eff_cut;
+
+  TFile *eff_file = new TFile("histo_kolmo/histo_donee/histo_charge_amplitude_energie_435.root", "READ");
+
+  TTree* eff_tree = (TTree*)eff_file->Get("new_tree");
+  eff_tree->SetBranchStatus("*",0);
+  eff_tree->SetBranchStatus("eff_tot",1);
+  eff_tree->SetBranchAddress("eff_tot", &eff_tot);
+  eff_tree->SetBranchStatus("eff_cut",1);
+  eff_tree->SetBranchAddress("eff_cut", &eff_cut);
+
+
 
   TFile *newfile = new TFile("histo_kolmo/Simu_kolmo.root", "RECREATE");
   TTree Result_tree("Result_tree","");
-
   Result_tree.Branch("Chi2NDF", &Chi2NDF);
   Result_tree.Branch("param1", &param1);
   Result_tree.Branch("param2", &param2);
@@ -280,34 +292,9 @@ void kolmo()
               Chi2->SetBinContent(eres_count, gain_count, Chi2NDF);
             }
 
-            // TH1D *mc0_full = MC_Tl_208->ProjectionZ("Charge_Tl_208_full", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
-            // TH1D *mc1_full = MC_Bi_214->ProjectionZ("Charge_Bi_214_full", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
-            // TH1D *mc2_full = MC_K_40->ProjectionZ("Charge_K_40_full", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
-            //
-            // mc1_full->Draw("");
-            // mc0_full->Draw("same");
-            // mc2_full->Draw("same");
-            //
-            // spectre_om_full->Draw("same");
-            // spectre_om_full->GetXaxis()->SetRangeUser(0, 120000);
-            //
-            // mc0_full->Scale(result_0_scale);
-            // mc1_full->Scale(result_1_scale);
-            // mc2_full->Scale(result_2_scale);
-            //
-            // mc0_full->SetLineColor(kGreen);
-            // mc1_full->SetLineColor(kOrange);
-            // mc2_full->SetLineColor(kBlack);
-
-            activity_Tl = (mc0->Integral()+mc0->Integral()*integrale_gauche_Tl/integrale_droite_Tl);
-            activity_Bi = (mc1->Integral()+mc1->Integral()*integrale_gauche_Bi/integrale_droite_Bi);
-            activity_K = (mc2->Integral()+mc2->Integral()*integrale_gauche_K/integrale_droite_K);
-
-
-            // if (eres < 12 )
-            // {
-            //   canvas->SaveAs(Form("activity/fit_kolmo_om_%d_eres_%d_gain_%d.png", om, eres_count, gain_count));
-            // }
+            // activity_Tl = ((mc0->Integral()/eff_cut)/1800)*100000000);
+            // activity_Bi = ((mc1->Integral()/eff_cut)/1800)*100000000);
+            // activity_K = ((mc2->Integral()/eff_cut)/1800)*100000000);
 
             Result_tree.Fill();
             delete fit;
@@ -337,10 +324,32 @@ void kolmo_mystere()
   gStyle->SetOptStat(0);
   TH1::SetDefaultSumw2();
 
+  // TFile *nefile = new TFile("Histo_simu/TH3D_eres_54_gain_150.root", "RECREATE");
+
+
+
   TH3D* MC_Tl_208 = MC_Simu("Tl_208");
+  std::cout << "ok Tl 208" << '\n';
   TH3D* MC_Bi_214 = MC_Simu("Bi_214");
+  std::cout << "ok Bi 214" << '\n';
   TH3D* MC_K_40 = MC_Simu("K_40");
+  std::cout << "ok K 40" << '\n';
   TH2D* Chi2 = new TH2D("Chi2", "Chi2", eres_n_bin-1, eres_bin_min, eres_bin_max, gain_n_bin-1, gain_bin_min, gain_bin_max);
+
+
+  //
+  // nefile->cd();
+  //
+  // MC_Tl_208->Write();
+  // MC_Bi_214->Write();
+  // MC_K_40->Write();
+  //
+  // nefile->cd();
+  // return;
+  //
+  // TH3D* MC_Tl_208 = (TH3D*)nefile->Get("Tl_208");
+  // TH3D* MC_Bi_214 = (TH3D*)nefile->Get("Bi_214");
+  // TH3D* MC_K_40 = (TH3D*)nefile->Get("K_40");
 
   int lim = 0;
   double param1 = 0;
@@ -353,15 +362,20 @@ void kolmo_mystere()
   double activity_Tl = 0;
   double activity_Bi = 0;
   double activity_K = 0;
-  double integrale_gauche_Tl;
-  double integrale_droite_Tl;
-  double integrale_gauche_Bi;
-  double integrale_droite_Bi;
-  double integrale_gauche_K;
-  double integrale_droite_K;
+  double integrale_gauche_Tl = 0;
+  double integrale_droite_Tl = 0;
+  double integrale_gauche_Bi = 0;
+  double integrale_droite_Bi = 0;
+  double integrale_gauche_K = 0;
+  double integrale_droite_K = 0;
+  double result_0_scale = 0;
+  double result_1_scale = 0;
+  double result_2_scale = 0;
+  double total_hit_Tl = 0;
+  double total_hit_Bi = 0;
+  double total_hit_K = 0;
 
-
-
+  int lim_tree = 0;
   float gain = 0;
   float eres = 0;
 
@@ -373,6 +387,7 @@ void kolmo_mystere()
   Result_tree.Branch("param3", &param3);
   Result_tree.Branch("gain", &gain);
   Result_tree.Branch("eres", &eres);
+  Result_tree.Branch("lim_tree", &lim_tree);
 
   Result_tree.Branch("activity_Tl", &activity_Tl);
   Result_tree.Branch("activity_Bi", &activity_Bi);
@@ -383,24 +398,29 @@ void kolmo_mystere()
   // Result_tree.Branch("integrale_gauche_Bi", &integrale_gauche_Bi);
   Result_tree.Branch("integrale_droite_K", &integrale_droite_K);
   // Result_tree.Branch("integrale_gauche_K", &integrale_gauche_K);
+  Result_tree.Branch("total_hit_Tl", &total_hit_Tl);
+  Result_tree.Branch("total_hit_Bi", &total_hit_Bi);
+  Result_tree.Branch("total_hit_K", &total_hit_K);
 
 
   TFile *file = new TFile("histo_mystere/histo_2.root", "READ");
   TH1D* spectre_om = (TH1D*)file->Get("histo_2");
 
   lim = (195);
-    for (int bin =1; bin < lim; bin++) {
-      spectre_om->SetBinContent(bin, 0);
-    }
 
+  // int gain_count = 57;
+        // for ( lim = 5; lim <385; lim+=20) {
 
-        for (int gain_count = 1; gain_count <100; gain_count++) {
+          for (int bin =1; bin < lim; bin++) {
+            spectre_om->SetBinContent(bin, 0);
+          }
+        for (int gain_count = 1; gain_count <150; gain_count++) {
                 for (int eres_count = 1; eres_count < 54; eres_count++) {
           float P =(1/50000.0*0.8);
           float r = (1/50000.0*1.2);
           // float P =(1/38250.0*0.6);
           // float r = (1/38250.0*1.4);
-
+          lim_tree = lim;
           std::cout << 1/(gain_bin_min + gain_bin_width*(gain_count-1))<< "   et    lim_inf = " << P << "   sup  ="  <<r<< '\n';
 
         if ((1/(gain_bin_min + gain_bin_width*(gain_count-1))>P) && (1/(gain_bin_min + gain_bin_width*(gain_count-1))<r))
@@ -409,6 +429,11 @@ void kolmo_mystere()
           TH1D *mc0 = MC_Tl_208->ProjectionZ("Charge_Tl_208", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
           TH1D *mc1 = MC_Bi_214->ProjectionZ("Charge_Bi_214", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
           TH1D *mc2 = MC_K_40->ProjectionZ("Charge_K_40", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+
+          TH1D *mc0_full = MC_Tl_208->ProjectionZ("Charge_Tl_208_full", eres_count, eres_count, gain_count, gain_count);    // first MC histogram
+          TH1D *mc1_full = MC_Bi_214->ProjectionZ("Charge_Bi_214_full", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+          TH1D *mc2_full = MC_K_40->ProjectionZ("Charge_K_40_full", eres_count, eres_count, gain_count, gain_count);    // second MC histogram
+
 
           // integrale_gauche_Tl = mc0->Integral(0, lim);
           integrale_droite_Tl = mc0->Integral(lim, 1024);
@@ -470,13 +495,16 @@ void kolmo_mystere()
             // spectre_om->GetXaxis()->SetRangeUser(0, 120000);
             spectre_om->GetXaxis()->SetTitle("Charge (adc)");
             result_0->Draw("same");
-            result_0->Scale(param1/result_0->Integral()*spectre_om->Integral());
+            result_0_scale = param1/result_0->Integral()*spectre_om->Integral();
+            result_0->Scale(result_0_scale);
             result_0->SetLineColor(kGreen);
             result_1->Draw("same");
-            result_1->Scale(param2/result_1->Integral()*spectre_om->Integral());
+            result_1_scale = param2/result_1->Integral()*spectre_om->Integral();
+            result_1->Scale(result_1_scale);
             result_1->SetLineColor(kOrange);
             result_2->Draw("same");
-            result_2->Scale(param3/result_2->Integral()*spectre_om->Integral());
+            result_2_scale = param3/result_2->Integral()*spectre_om->Integral();
+            result_2->Scale(result_2_scale);
             result_2->SetLineColor(kBlack);
             result->Draw("same");
             result->SetLineColor(kRed);
@@ -491,16 +519,25 @@ void kolmo_mystere()
             legend->AddEntry(result, "fit");
             legend->Draw();
 
-            activity_Tl = (mc0->Integral()/integrale_droite_Tl)/1800;
-            activity_Bi = (mc1->Integral()/integrale_droite_Bi)/1800;
-            activity_K = (mc2->Integral()/integrale_droite_K)/1800;
+            // activity_Tl = (mc0->Integral()/integrale_droite_Tl)/1800;
+            // activity_Bi = (mc1->Integral()/integrale_droite_Bi)/1800;
+            // activity_K = (mc2->Integral()/integrale_droite_K)/1800;
 
 
-            // if (eres < 20 )
-            // {
-            //   canvas->SaveAs(Form("Fit_kolmo/histo_mystere/fit_kolmo_eres_%d_gain_%d.png", eres_count, gain_count));
-            // }
+            if (eres < 20 )
+            {
+              // canvas->SaveAs(Form("Fit_kolmo/histo_mystere/fit_kolmo_eres_%d_gain_%d_lim_%i.png", eres_count, gain_count, lim));
+              canvas->SaveAs(Form("Fit_kolmo/histo_mystere/fit_kolmo_eres_%d_gain_%d.png", eres_count, gain_count));
+            }
             Chi2->SetBinContent(eres_count, gain_count, Chi2NDF);
+
+            mc0_full->Scale(result_0_scale);
+            mc1_full->Scale(result_1_scale);
+            mc2_full->Scale(result_2_scale);
+
+            total_hit_Tl = mc0->Integral();
+            total_hit_Bi = mc1->Integral();
+            total_hit_K = mc2->Integral();
 
             Result_tree.Fill();
             delete canvas;
@@ -509,6 +546,9 @@ void kolmo_mystere()
           delete mc0;
           delete mc1;
           delete mc2;
+          delete mc0_full;
+          delete mc1_full;
+          delete mc2_full;
         }
       }
     }
@@ -526,15 +566,39 @@ void kolmo_mystere()
 
 }
 
+void fit_poly(/* arguments */) {
+
+
+          TH1D* spectre_om = spectre_charge(om);
+          spectre_om->Draw();
+          TF1* f_poly = new TF1 ("f_poly","pow(x,2)*[0]+ x*[1] + [0]",400, 700);
+          f_ComptonEdgeExpo->SetParNames("N_evt","mean_charge","Sigma","Nbg","#lambda" );
+
+          f_ComptonEdgeExpo->SetParameters(740, 70000, 4000, 30000, 0.0001);
+            f_ComptonEdgeExpo->SetRange(30000,80000);
+            f_ComptonEdgeExpo->Draw("same");
+            spectre_om->Fit(f_ComptonEdgeExpo, "RQ");
+            f_ComptonEdgeExpo->SetRange(f_ComptonEdgeExpo->GetParameter(1)-2.5*f_ComptonEdgeExpo->GetParameter(2),f_ComptonEdgeExpo->GetParameter(1)+5*f_ComptonEdgeExpo->GetParameter(2));
+            spectre_om->Fit(f_ComptonEdgeExpo, "RQ");
+            f_ComptonEdgeExpo->SetRange(f_ComptonEdgeExpo->GetParameter(1)-2.5*f_ComptonEdgeExpo->GetParameter(2),f_ComptonEdgeExpo->GetParameter(1)+10*f_ComptonEdgeExpo->GetParameter(2));
+            spectre_om->Fit(f_ComptonEdgeExpo, "RQ");
+
+}
+
 
 void eff_om(string name) {
 
-
+  double eff_tot =0;
+  double eff_cut = 0;
+  double eff_tot_error =0;
+  double eff_cut_error = 0;
   std::vector<int> *om_id = new std::vector<int>;
   std::vector<double> *energy = new std::vector<double>;
 
-  TFile *newfile = new TFile("eff_om.root", "RECREATE");
+
   TFile *file = new TFile(Form("Histo_simu/Simu_%s.root", name.c_str()), "READ");
+
+
   TTree* tree = (TTree*)file->Get("Result_tree");
   tree->SetBranchStatus("*",0);
   tree->SetBranchStatus("om_id",1);
@@ -542,23 +606,66 @@ void eff_om(string name) {
   tree->SetBranchStatus("energy",1);
   tree->SetBranchAddress("energy", &energy);
 
-  TH2F eff_fr("eff_fr", "eficacité mur fr", 20, 0, 20, 13, 0, 13);
+
+  TH2F eff_tot_histo("eff", "eficacite mur ", 20, 0, 20, 13, 0, 13);
+  TH2F eff_cut_histo("eff_cut", "eficacite mur cut", 20, 0, 20, 13, 0, 13);
+
+  std::ifstream  charge("/home/aguerre/Bureau/Thèse/Fit_Gain_Simu/gain_data/Resultat_mean_energie_charge_total.txt");
+  float charge_valeur_fit [712];
+  memset(charge_valeur_fit, -1, 712*sizeof(float));
+  int charge_om_num;
+  while (charge >> charge_om_num)
+  {
+    charge >> charge_valeur_fit[charge_om_num];
+  }
 
 
-  for (int i = 0; i < 260; i++) {
 
+  double lim =0;
+
+  TFile *newfile = new TFile("eff_om.root", "RECREATE");
+  TTree new_tree("new_tree","");
+  new_tree.Branch("eff_tot", &eff_tot);
+  new_tree.Branch("eff_cut", &eff_cut);
+  new_tree.SetDirectory(file);
+
+  for (int i = 0; i < 4; i++) {
+
+
+    lim = ((1/(200000*charge_valeur_fit[i]/1024))*(200000/1024))*charge_valeur_fit[i];
+
+    std::cout << charge_valeur_fit[i] << '\n';
+    std::cout << lim << '\n';
     string s =to_string (i);
 
     int om_col = (i % 13 );
     int om_row = (i / 13);
 
-    eff_fr.SetBinContent( om_row+1, om_col+1, tree->GetEntries(Form("om_id == %s", s.c_str())));
+    eff_tot = (tree->GetEntries(Form("om_id == %s", s.c_str())))/1.0e6;
+    eff_tot_error = (sqrt(tree->GetEntries(Form("om_id == %s", s.c_str()))/1.0e8))/100;
+    eff_cut = (tree->GetEntries(Form("om_id == %s && energy > %f", s.c_str(), lim)))/1.0e6;
+    eff_cut_error = (sqrt(tree->GetEntries(Form("om_id == %s && energy > %f", s.c_str(), lim))/1.0e8))/100;
+
+    std::cout << eff_tot << '\n';
+    std::cout << eff_tot_error << '\n';
+    std::cout << eff_cut << '\n';
+    std::cout << eff_cut_error << '\n';
+
+    eff_tot_histo.SetBinContent( om_row+1, om_col+1, eff_tot);
+    eff_cut_histo.SetBinContent( om_row+1, om_col+1, eff_cut);
+
     std::cout << "ok pour l'om : " << i << '\n';
+    new_tree.Fill();
+
   }
+
+file->Close();
 
 newfile->cd();
 
-eff_fr.Write();
+new_tree.Write();
+eff_tot_histo.Write();
+eff_cut_histo.Write();
 
 newfile->Close();
 

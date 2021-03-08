@@ -74,7 +74,7 @@ TH3D* MC_Simu(string name){
                                 gain_n_bin, gain_bin_min - (gain_bin_width/2), gain_bin_max + (gain_bin_width/2),
                                 charge_n_bin, charge_bin_min, charge_bin_max);
 
-  // for (int i = 0; i < 100000; i++) {
+  // for (int i = 0; i < 10000; i++) {
   for (int i = 0; i < 1000000; i++) {
   // for (int i = 0; i < tree->GetEntries(); i++) {
     double E_kolmo =0;
@@ -95,8 +95,13 @@ TH3D* MC_Simu(string name){
       }
     }
   }
+  TFile *newfile = new TFile(Form("Histo_simu/MC_Simu_%s_eres_%d_gain_%d.root", name.c_str(), eres_n_bin, gain_n_bin), "RECREATE");
+  newfile->cd();
 
- return MC_Simu;
+  MC_Simu->Write();
+  newfile->Close();
+
+  return MC_Simu;
 }
 
 void kolmo()
@@ -324,32 +329,34 @@ void kolmo_mystere()
   gStyle->SetOptStat(0);
   TH1::SetDefaultSumw2();
 
-  // TFile *nefile = new TFile("Histo_simu/TH3D_eres_54_gain_150.root", "RECREATE");
 
+  TFile *histo_file_Tl = new TFile("Histo_simu/MC_Simu_Tl_208_eres_54_gain_150.root", "READ");
+  histo_file_Tl->cd();
+  TH3D* MC_Tl_208 = (TH3D*)histo_file_Tl->Get("MC_Simu_Tl_208");
 
+  // histo_file_Tl->Close();
 
-  TH3D* MC_Tl_208 = MC_Simu("Tl_208");
-  std::cout << "ok Tl 208" << '\n';
-  TH3D* MC_Bi_214 = MC_Simu("Bi_214");
-  std::cout << "ok Bi 214" << '\n';
-  TH3D* MC_K_40 = MC_Simu("K_40");
-  std::cout << "ok K 40" << '\n';
-  TH2D* Chi2 = new TH2D("Chi2", "Chi2", eres_n_bin-1, eres_bin_min, eres_bin_max, gain_n_bin-1, gain_bin_min, gain_bin_max);
-
-
-  //
-  // nefile->cd();
-  //
-  // MC_Tl_208->Write();
-  // MC_Bi_214->Write();
-  // MC_K_40->Write();
-  //
-  // nefile->cd();
   // return;
-  //
-  // TH3D* MC_Tl_208 = (TH3D*)nefile->Get("Tl_208");
-  // TH3D* MC_Bi_214 = (TH3D*)nefile->Get("Bi_214");
-  // TH3D* MC_K_40 = (TH3D*)nefile->Get("K_40");
+
+  TFile *histo_file_Bi = new TFile("Histo_simu/MC_Simu_Bi_214_eres_54_gain_150.root", "READ");
+  histo_file_Bi->cd();
+  TH3D* MC_Bi_214 = (TH3D*)histo_file_Bi->Get("MC_Simu_Bi_214");
+  // histo_file_Bi->Close();
+
+  TFile *histo_file_K = new TFile("Histo_simu/MC_Simu_K_40_eres_54_gain_150.root", "READ");
+  histo_file_K->cd();
+  TH3D* MC_K_40 = (TH3D*)histo_file_K->Get("MC_Simu_K_40");
+  // histo_file_K->Close();
+
+  // TH3D* MC_Tl_208 = MC_Simu("Tl_208");
+  // std::cout << "ok Tl 208" << '\n';
+  // TH3D* MC_Bi_214 = MC_Simu("Bi_214");
+  // std::cout << "ok Bi 214" << '\n';
+  // TH3D* MC_K_40 = MC_Simu("K_40");
+  // std::cout << "ok K 40" << '\n';
+
+
+
 
   int lim = 0;
   double param1 = 0;
@@ -380,6 +387,7 @@ void kolmo_mystere()
   float eres = 0;
 
   TFile *newfile = new TFile("histo_kolmo/Simu_mystere_2_gain.root", "RECREATE");
+  TH2D* Chi2 = new TH2D("Chi2", "Chi2", eres_n_bin-1, eres_bin_min, eres_bin_max, gain_n_bin-1, gain_bin_min, gain_bin_max);
   TTree Result_tree("Result_tree","");
   Result_tree.Branch("Chi2NDF", &Chi2NDF);
   Result_tree.Branch("param1", &param1);
@@ -406,15 +414,15 @@ void kolmo_mystere()
   TFile *file = new TFile("histo_mystere/histo_2.root", "READ");
   TH1D* spectre_om = (TH1D*)file->Get("histo_2");
 
-  lim = (195);
+  // lim = (195);
 
-  // int gain_count = 57;
-        // for ( lim = 5; lim <385; lim+=20) {
+  int gain_count = 57;
+        for ( lim = 5; lim <385; lim+=20) {
 
           for (int bin =1; bin < lim; bin++) {
             spectre_om->SetBinContent(bin, 0);
           }
-        for (int gain_count = 1; gain_count <150; gain_count++) {
+        // for (int gain_count = 1; gain_count <150; gain_count++) {
                 for (int eres_count = 1; eres_count < 54; eres_count++) {
           float P =(1/50000.0*0.8);
           float r = (1/50000.0*1.2);
@@ -553,6 +561,12 @@ void kolmo_mystere()
       }
     }
 
+
+  histo_file_Tl->Close();
+  histo_file_Bi->Close();
+  histo_file_K->Close();
+
+
  newfile->cd();
 
  std::cout << "****************************************************" << '\n';
@@ -566,24 +580,76 @@ void kolmo_mystere()
 
 }
 
-void fit_poly(/* arguments */) {
+void fit_poly(string name) {
+
+  double min = 0;
+  double Chi2NDF = 0;
+  float eres = 0;
+  float gain = 0;
+  int lim_tree = 0;
+  double lim = 0;
+  double x2 = 0;
+  double x1 = 0;
+  double x0 = 0;
+
+  TH2D* histo_fit = new TH2D(Form("histo_fit_%s", name.c_str()), Form("histo_fit_%s", name.c_str()), 20, 5, 25, 100, 8, 12);
+
+  TFile *file = new TFile(Form("histo_kolmo/Simu_%s.root", name.c_str()), "READ");
+  TTree* tree = (TTree*)file->Get("Result_tree");
+  tree->SetBranchStatus("*",0);
+  tree->SetBranchStatus("Chi2NDF",1);
+  tree->SetBranchAddress("Chi2NDF", &Chi2NDF);
+  tree->SetBranchStatus("eres",1);
+  tree->SetBranchAddress("eres", &eres);
+  tree->SetBranchStatus("gain",1);
+  tree->SetBranchAddress("gain", &gain);
+  tree->SetBranchStatus("lim_tree",1);
+  tree->SetBranchAddress("lim_tree", &lim_tree);
 
 
-          TH1D* spectre_om = spectre_charge(om);
-          spectre_om->Draw();
-          TF1* f_poly = new TF1 ("f_poly","pow(x,2)*[0]+ x*[1] + [0]",400, 700);
-          f_ComptonEdgeExpo->SetParNames("N_evt","mean_charge","Sigma","Nbg","#lambda" );
+  double lim_tab[25], min_tab[25];
 
-          f_ComptonEdgeExpo->SetParameters(740, 70000, 4000, 30000, 0.0001);
-            f_ComptonEdgeExpo->SetRange(30000,80000);
-            f_ComptonEdgeExpo->Draw("same");
-            spectre_om->Fit(f_ComptonEdgeExpo, "RQ");
-            f_ComptonEdgeExpo->SetRange(f_ComptonEdgeExpo->GetParameter(1)-2.5*f_ComptonEdgeExpo->GetParameter(2),f_ComptonEdgeExpo->GetParameter(1)+5*f_ComptonEdgeExpo->GetParameter(2));
-            spectre_om->Fit(f_ComptonEdgeExpo, "RQ");
-            f_ComptonEdgeExpo->SetRange(f_ComptonEdgeExpo->GetParameter(1)-2.5*f_ComptonEdgeExpo->GetParameter(2),f_ComptonEdgeExpo->GetParameter(1)+10*f_ComptonEdgeExpo->GetParameter(2));
-            spectre_om->Fit(f_ComptonEdgeExpo, "RQ");
+  for (lim = 5; lim < 25; lim++) {
 
-}
+    TF1* f_poly = new TF1 ("f_poly","[p0]*pow(x,2)+[p1]*x+[p2]", 5, 25);
+    f_poly->SetParNames("x2","x1","x0");
+    f_poly->SetParameters(4, -0.4, 0.02);
+    f_poly->SetRange(6,22);
+
+    tree->Draw("Chi2NDF:eres >> map(50,6,21,20,0,8)",Form("gain > 1.996e-5 && gain < 1.998e-5 && lim_tree == %f", lim));
+    TH2F *map = (TH2F*)gDirectory->Get("map");
+    int i = lim;
+    f_poly->Draw("same");
+
+    map->Fit(f_poly, "RQ");
+
+    min = map->GetFunction("f_poly")->GetMinimumX();
+
+    std::cout << "lim = " << lim << '\n';
+    std::cout << "min = " << min  << '\n';
+
+    lim_tab[i] = lim;
+    min_tab[i] = min;
+    delete f_poly;
+    delete map;
+  }
+  int n =25;
+  TGraph* gr = new TGraph(n ,lim_tab, min_tab);
+  gr->Draw("AC*");
+  gr->GetXaxis()->SetTitle("cut (bin)");
+  gr->GetYaxis()->SetTitle("min_Chi2");
+
+
+  TFile *newfile = new TFile("test.root", "RECREATE");
+  newfile->cd();
+  histo_fit->Write();
+
+  newfile->Close();
+
+  return 0;
+  }
+
+
 
 
 void eff_om(string name) {

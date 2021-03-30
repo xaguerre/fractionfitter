@@ -51,10 +51,8 @@ void test() {
   // }
 }
 
-
-
 TH1D* spectre_charge(int om_number )
-  {
+{
     TFile *file = new TFile("histo_kolmo/histo_donee/histo_charge_amplitude_energie_435.root", "READ");
     gROOT->cd();
     TH2F* charge = (TH2F*)file->Get("histo_pm_charge");
@@ -114,7 +112,6 @@ TH3D* MC_Simu(string name){
 
   return MC_Simu;
 }
-
 
 double* om_gain_fit(int om)
 {
@@ -317,6 +314,7 @@ void kolmo()
   double integrale_droite_Bi;
   double integrale_gauche_K;
   double integrale_droite_K;
+  double mean_erf = 0;
 
   double* tab = new double[7];
   float gain = 0;
@@ -359,7 +357,7 @@ void kolmo()
     tab = om_gain_fit(om);
     float limi = 0.8;
     float lims = 1.3;
-    if (tab[0] = 0) {
+    if (tab[0] == 0) {
       mean_erf = 24000;
       limi = 0.6;
       lims = 1.5;
@@ -1058,13 +1056,8 @@ void fit_poly2(string name) {
     return 0;
     }
 
-void eff_om(string name) {
+void eff_om_prep(string name) {
 
-  double lim =0;
-  double eff_tot =0;
-  double eff_cut = 0;
-  double eff_tot_error =0;
-  double eff_cut_error = 0;
   std::vector<int> *om_id = new std::vector<int>;
   std::vector<double> *energy = new std::vector<double>;
 
@@ -1077,28 +1070,8 @@ void eff_om(string name) {
   tree->SetBranchStatus("energy",1);
   tree->SetBranchAddress("energy", &energy);
 
-  TH2F eff_tot_histo("eff", "eficacite mur ", 20, 0, 20, 13, 0, 13);
-  TH2F eff_cut_histo("eff_cut", "eficacite mur cut", 20, 0, 20, 13, 0, 13);
-
-  std::ifstream  charge("/home/aguerre/Bureau/Thèse/Fit_Gain_Simu/gain_data/Resultat_mean_energie_charge_total.txt");
-  float charge_valeur_fit [712];
-  memset(charge_valeur_fit, -1, 712*sizeof(float));
-  int charge_om_num;
-  while (charge >> charge_om_num)
-  {
-    charge >> charge_valeur_fit[charge_om_num];
-  }
-
-  TFile *newfile = new TFile("eff_om.root", "RECREATE");
-  TTree new_tree("new_tree","");
-  new_tree.Branch("eff_tot", &eff_tot);
-  new_tree.Branch("eff_cut", &eff_cut);
-  new_tree.SetDirectory(file);
-
-  TH2D energy_id2("e_id2", "e id2 ", 712, 0, 711, 10000, 0, 5);
-  TH1D energy_id("e_id", "e id ", 712, 0, 711);
-
-    std::cout << "ok" << '\n';
+  TH1D energy_id("e_id", "e id ", 712, 0, 712);
+  TH1D energy_id_cut("e_id_cut", "e id cut ", 712, 0, 712);
 
   for (int i = 0; i < tree->GetEntries(); i++) {
     if (i % 1000000 == 0) {
@@ -1108,17 +1081,19 @@ void eff_om(string name) {
     for (int k = 0; k < om_id->size(); k++) {
 
       for (int j = 0; j < energy->size(); j++) {
-        energy_id.SetBinContent(om_id->at(k), energy->at(j));
-        energy_id.SetBinContent(om_id->at(k), energy->at(j));
+        energy_id.Fill(om_id->at(k)-1);
+        if (energy->at(j) > 1) {
+          energy_id_cut.Fill(om_id->at(k)-1);
+        }
       }
     }
   }
 
-  TFile *nefile = new TFile("Histo_test.root", "RECREATE");
-  nefile->cd();
+  TFile *newfile = new TFile(Form("eff_om/eff_prep_%s.root", name.c_str()), "RECREATE");
+  newfile->cd();
   energy_id.Write();
-  energy_id2.Write();
-  nefile->Close();
+  energy_id_cut.Write();
+  newfile->Close();
 }
 
 void eff_om(string name) {
@@ -1131,49 +1106,34 @@ void eff_om(string name) {
   std::vector<int> *om_id = new std::vector<int>;
   std::vector<double> *energy = new std::vector<double>;
 
-  TFile *file = new TFile(Form("Histo_simu/Simu_%s.root", name.c_str()), "READ");
+  TFile *file = new TFile(Form("eff_om/eff_prep_%s.root", name.c_str()), "READ");
+  TH1D* eff_om_prep = (TH1D*)file->Get("e_id");
+  TH1D* eff_om_prep_cut = (TH1D*)file->Get("e_id_cut");
 
-  TTree* tree = (TTree*)file->Get("Result_tree");
-  tree->SetBranchStatus("*",0);
-  tree->SetBranchStatus("om_id",1);
-  tree->SetBranchAddress("om_id", &om_id);
-  tree->SetBranchStatus("energy",1);
-  tree->SetBranchAddress("energy", &energy);
+  TH2F eff_tot_histo("eff", "efficacite mur ", 20, 0, 20, 13, 0, 13);
+  TH2F eff_cut_histo("eff_cut", "efficacite mur cut", 20, 0, 20, 13, 0, 13);
 
-  TH2F eff_tot_histo("eff", "eficacite mur ", 20, 0, 20, 13, 0, 13);
-  TH2F eff_cut_histo("eff_cut", "eficacite mur cut", 20, 0, 20, 13, 0, 13);
-
-  TFile *newfile = new TFile("eff_om.root", "RECREATE");
+  TFile *newfile = new TFile(Form("eff_om/eff_om_%s.root", name.c_str()), "RECREATE");
   TTree new_tree("new_tree","");
   new_tree.Branch("eff_tot", &eff_tot);
   new_tree.Branch("eff_cut", &eff_cut);
-  new_tree.SetDirectory(file);
 
-  for (int i = 0; i < 4; i++) {
-
-    lim = 1;
-
-    std::cout << charge_valeur_fit[i] << '\n';
-    std::cout << lim << '\n';
-    string s =to_string (i);
+  // for (int i = 0; i < eff_om_prep->GetMaximumBin(); i++) {
+  for (int i = 0; i < 260; i++) {
 
     int om_col = (i % 13);
     int om_row = (i / 13);
 
-    eff_tot = (tree->GetEntries(Form("om_id == %s", s.c_str())))/1.0e6;
-    eff_tot_error = (sqrt(tree->GetEntries(Form("om_id == %s", s.c_str()))/1.0e8))/100;
-    eff_cut = (tree->GetEntries(Form("om_id == %s && energy > %f", s.c_str(), lim)))/1.0e6;
-    eff_cut_error = (sqrt(tree->GetEntries(Form("om_id == %s && energy > %f", s.c_str(), lim))/1.0e8))/100;
+    std::cout << "om col = " << om_col << " and om row = " << om_row << '\n';
 
-    std::cout << eff_tot << '\n';
-    std::cout << eff_tot_error << '\n';
-    std::cout << eff_cut << '\n';
-    std::cout << eff_cut_error << '\n';
+    eff_tot = (eff_om_prep->GetBinContent(i))/1.0e6;
+    eff_tot_error = (sqrt(eff_om_prep->GetBinContent(i))/1.0e6);
+    eff_cut = (eff_om_prep_cut->GetBinContent(i))/1.0e6;
+    eff_cut_error = (sqrt(eff_om_prep_cut->GetBinContent(i))/1.0e6);
 
     eff_tot_histo.SetBinContent( om_row+1, om_col+1, eff_tot);
     eff_cut_histo.SetBinContent( om_row+1, om_col+1, eff_cut);
 
-    std::cout << "ok pour l'om : " << i << '\n';
     new_tree.Fill();
   }
 
